@@ -59,6 +59,8 @@ namespace AltaVR.MapCreation
 
             if (obj.transform.TryGetComponent(out Tile t))
             {
+                onTileChange?.Invoke(t);
+
                 t.position = a_tile.position;
                 t.data = a_tile;
 
@@ -78,7 +80,7 @@ namespace AltaVR.MapCreation
             if (tile == null)
                 return;
 
-            mapInfo.RemoveTile(tile.id);
+            mapInfo.RemoveTile(a_position);
 
             loadedTiles.Remove(a_position);
 

@@ -23,5 +23,17 @@ MonoBehaviour:
     - {fileID: 496976725510347998, guid: dd9d29a70e42843409f305a0e4e3928e, type: 3}
     - {fileID: 496976725510347998, guid: d0a3c6dbabbae4448816411d9a3f833e, type: 3}
     tiles:
+    - position: {x: 2, y: 2, z: 0}
+      prefabIndex: 0
+    - position: {x: -1, y: 1, z: 0}
+      prefabIndex: 0
+    - position: {x: -2, y: 2, z: 0}
+      prefabIndex: 0
+    - position: {x: 1, y: -1, z: 0}
+      prefabIndex: 1
+    - position: {x: 0, y: -1, z: 0}
+      prefabIndex: 2
     - position: {x: -1, y: -1, z: 0}
+      prefabIndex: 2
+    - position: {x: 2, y: -2, z: 0}
       prefabIndex: 0

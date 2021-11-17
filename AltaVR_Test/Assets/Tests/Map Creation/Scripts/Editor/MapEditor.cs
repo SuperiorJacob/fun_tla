@@ -9,80 +9,9 @@ namespace AltaVR.MapCreation
     public class MapEditor : Editor
     {
         private SerializedProperty _mapData;
-        private SerializedProperty _mapInfo;
         private SerializedProperty _editMode;
 
         private TileData _selectedTile;
-
-        private void OnEnable()
-        {
-            SceneView.duringSceneGui += OnSceneGUI;
-
-            _mapData = serializedObject.FindProperty("mapData");
-            _mapInfo = serializedObject.FindProperty("mapInfo");
-            _editMode = serializedObject.FindProperty("_editMode");
-        }
-
-        private void OnSceneGUI(SceneView a_sceneView)
-        {
-            if (!_editMode.boolValue)
-                return;
-
-            SceneView.RepaintAll();
-
-            var map = (Map)target;
-
-            if (map.loadedTiles == null)
-                map.LoadSavedTiles();
-
-            Camera cam = Camera.current;
-
-            // Scene view camera mouse position inverted position solution.
-            // Found here: https://forum.unity.com/threads/mouse-position-in-scene-view.250399/#post-4838108
-
-            Vector3 mousePos = Event.current.mousePosition;
-            mousePos.z = -cam.worldToCameraMatrix.MultiplyPoint(map.transform.position).z;
-            mousePos.y = Screen.height - mousePos.y - 36.0f;
-
-            Vector2 position = Camera.current.ScreenToWorldPoint(mousePos);
-
-            //
-
-            TileData tile = map.GetTileByClosestPosition(position);
-
-            if (Event.current.type == EventType.MouseUp)
-            {
-                _selectedTile = tile;
-
-                map.DrawHovered(_selectedTile);
-            }
-
-            if (Event.current.type == EventType.KeyUp)
-                if (_selectedTile.prefabIndex > -1)
-                {
-                    if (Event.current.keyCode == KeyCode.Space)
-                    {
-                        map.RemoveTileAtPosition(_selectedTile.position);
-                    }
-                    else
-                    {
-                        _selectedTile = map.NextTile(_selectedTile, Event.current.keyCode == KeyCode.D);
-                    }
-                }
-                else if (_selectedTile.prefabIndex == -2)
-                {
-                    if (Event.current.keyCode == KeyCode.Space)
-                    {
-                        _selectedTile.prefabIndex = 0;
-                        map.CreateTile(_selectedTile, true);
-                    }
-                }
-        }
-
-        private void OnDisable()
-        {
-            SceneView.duringSceneGui -= OnSceneGUI;
-        }
 
         public override void OnInspectorGUI()
         {
@@ -154,6 +83,78 @@ namespace AltaVR.MapCreation
             }
 
             serializedObject.ApplyModifiedProperties();
+        }
+
+        private void OnSceneGUI(SceneView a_sceneView)
+        {
+            if (!_editMode.boolValue)
+                return;
+
+            SceneView.RepaintAll();
+
+            var map = (Map)target;
+
+            if (map.loadedTiles == null)
+                map.LoadSavedTiles();
+
+            Camera sceneCamera = Camera.current;
+
+            // Scene view camera mouse position inverted position solution.
+            // Found here: https://forum.unity.com/threads/mouse-position-in-scene-view.250399/#post-4838108
+
+            Vector3 mousePos = Event.current.mousePosition;
+            mousePos.z = -sceneCamera.worldToCameraMatrix.MultiplyPoint(map.transform.position).z;
+            mousePos.y = Screen.height - mousePos.y - 36.0f;
+
+            Vector2 position = Camera.current.ScreenToWorldPoint(mousePos);
+
+            //
+
+            TileData tile = map.GetTileByClosestPosition(position);
+
+            if (Event.current.type == EventType.MouseUp)
+            {
+                _selectedTile = tile;
+
+                map.DrawHovered(_selectedTile);
+            }
+            else if (Event.current.type == EventType.KeyUp)
+            {
+                if (_selectedTile.prefabIndex > -1)
+                {
+                    if (Event.current.keyCode == KeyCode.Space)
+                    {
+                        map.RemoveTileAtPosition(_selectedTile.position);
+                    }
+                    else
+                    {
+                        _selectedTile = map.NextTile(_selectedTile, Event.current.keyCode == KeyCode.D);
+                    }
+                }
+                else if (_selectedTile.prefabIndex == -2)
+                {
+                    if (Event.current.keyCode == KeyCode.Space)
+                    {
+                        _selectedTile.prefabIndex = 0;
+                        map.CreateTile(_selectedTile, true);
+                    }
+                }
+            }
+        }
+
+        private void OnEnable()
+        {
+            // Hook scene refreshing.
+            SceneView.duringSceneGui += OnSceneGUI;
+
+            _mapData = serializedObject.FindProperty("mapData");
+            _editMode = serializedObject.FindProperty("_editMode");
+        }
+
+        private void OnDisable()
+        {
+            // Unhook scene refreshing.
+            SceneView.duringSceneGui -= OnSceneGUI;
         }
     }
 }

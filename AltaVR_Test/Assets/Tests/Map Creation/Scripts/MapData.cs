@@ -9,7 +9,6 @@ namespace AltaVR.MapCreation
     {
         public Vector3 gridSize;
         public Vector2 cellSize;
-        public Vector2 cellGap;
     }
 
     [System.Serializable]
@@ -41,33 +40,41 @@ namespace AltaVR.MapCreation
         [NonReorderable]
         public TileData[] tiles;
 
-        public void SetTile(int a_index, TileData a_data)
+        public int SetTile(int a_index, TileData a_data)
         {
-            List<TileData> data = new List<TileData>();
+            TileData[] data;
 
-            for (int i = 0; i < tiles.Length; i++)
+            if (tiles.Length < (a_index + 1))
             {
-                data.Insert(i, tiles[i]);
+                data = new TileData[a_index + 1];
             }
+            else
+                data = new TileData[tiles.Length];
 
-            data.Insert(a_index, a_data);
+            tiles.CopyTo(data, 0);
 
-            tiles = data.ToArray();
+            data[a_index] = a_data;
+
+            tiles = data;
+
+            return a_index;
         }
 
-        public void RemoveTile(int a_index)
+        public void RemoveTile(Vector3 a_position)
         {
-            List<TileData> data = new List<TileData>();
+            TileData[] data = new TileData[tiles.Length - 1];
 
-            for (int i = 0; i < tiles.Length; i++)
+            int count = 0;
+            foreach (var tile in tiles)
             {
-                if (i == a_index)
+                if (tile.position == a_position)
                     continue;
 
-                data.Add(tiles[i]);
+                data[count] = tile;
+                count++;
             }
 
-            tiles = data.ToArray();
+            tiles = data;
         }
 
         public Vector3 GetGridPosition(Vector3 a_origin, Vector3 a_cellSize, int a_x, int a_y)
