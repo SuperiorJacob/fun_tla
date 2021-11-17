@@ -175,6 +175,11 @@ namespace AltaVR.MapCreation
             return rT;
         }
 
+        private void Start()
+        {
+            LoadSavedTiles();
+        }
+
 #if UNITY_EDITOR
         private TileData _currentHover;
         private Color _hoverYellow = new Color(1, 1, 0.2f, 0.5f);
