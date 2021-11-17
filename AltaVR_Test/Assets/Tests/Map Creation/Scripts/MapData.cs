@@ -64,7 +64,7 @@ namespace AltaVR.MapCreation
                 if (i == a_index)
                     continue;
 
-                data[i] = tiles[i];
+                data.Add(tiles[i]);
             }
 
             tiles = data.ToArray();

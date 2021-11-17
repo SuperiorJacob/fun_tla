@@ -15,55 +15,42 @@ namespace AltaVR.MapCreation
         [Header("Events")]
         public UnityEvent<Tile> onTileChange;
 
-        public Dictionary<Vector3, Tile> loadedTiles = new Dictionary<Vector3, Tile>();
+        public Dictionary<Vector3, Tile> loadedTiles;
 
-        public void TileShuffled(Tile a_tile)
+#if UNITY_EDITOR
+        [SerializeField] private bool _editMode;
+#endif
+
+        public TileData NextTile(TileData a_tileData, bool a_next)
         {
+            if (a_tileData.prefabIndex == mapInfo.prefabs.Length)
+                return a_tileData;
 
-        }
+            if (a_next)
+            {
+                a_tileData.prefabIndex++;
 
-        private void Start()
-        {
-            if (mapData == null)
-                return;
+                if (a_tileData.prefabIndex >= mapInfo.prefabs.Length)
+                    a_tileData.prefabIndex = 0;
+            }
+            else
+            {
+                a_tileData.prefabIndex--;
 
-            //var cellCount = GetGridCount();
+                if (a_tileData.prefabIndex < 0)
+                    a_tileData.prefabIndex = mapInfo.prefabs.Length - 1;
+            }
 
-            //for (int x = 0; x < cellCount.x; x++)
-            //{
-            //    for (int y = 0; y < cellCount.y; y++)
-            //    {
-            //        int index = Random.Range(0, mapInfo.prefabs.Length);
+            RemoveTileAtPosition(a_tileData.position);
 
-            //        var tilePrefab = GetTilePrefab(index);
+            CreateTile(a_tileData, true);
 
-            //        if (tilePrefab == null)
-            //            continue;
-
-            //        Vector3 position = GetGridPosition(x, y);
-
-            //        var obj = Instantiate(tilePrefab, position, default, transform);
-            //        obj.tag = "Tile";
-            //        obj.gameObject.name = $"Tile <{x}, {y}>";
-
-            //        if (obj.TryGetComponent(out Tile tile))
-            //        {
-            //            tile.position = position;
-            //            tiles[position] = tile;
-            //        }
-            //    }
-            //}
-        }
-
-        // Update is called once per frame
-        void Update()
-        {
-        
+            return a_tileData;
         }
 
         public GameObject CreateTile(TileData a_tile, bool a_assign = false)
         {
-            if (a_tile.prefabIndex == -1)
+            if (a_tile.prefabIndex == -1 || GetTileAt(a_tile.position) != null)
                 return null;
 
             var obj = Instantiate(mapInfo.prefabs[a_tile.prefabIndex], a_tile.position, default, transform);
@@ -75,8 +62,7 @@ namespace AltaVR.MapCreation
                 t.position = a_tile.position;
                 t.data = a_tile;
 
-                if (a_assign)
-                    SetTileAtPosition(t, a_tile.position);
+                SetTileAtPosition(t, a_tile.position, a_assign);
             }
 
             return obj;
@@ -101,7 +87,7 @@ namespace AltaVR.MapCreation
 
         public void LoadSavedTiles()
         {
-            loadedTiles.Clear();
+            loadedTiles = new Dictionary<Vector3, Tile>();
 
             // When a child gets destroyed, it restates the array, so you have to loop backwards.
             for (int i = transform.childCount; i > 0; --i)
@@ -117,9 +103,10 @@ namespace AltaVR.MapCreation
                 }
         }
 
-        public void SetTileAtPosition(Tile a_tile, Vector3 a_position)
+        public void SetTileAtPosition(Tile a_tile, Vector3 a_position, bool a_setTile = false)
         {
-            mapInfo.SetTile(mapInfo.tiles.Length, new TileData { position = a_position, prefabIndex = a_tile.id });
+            if (a_setTile)
+                mapInfo.SetTile(mapInfo.tiles.Length, new TileData { position = a_position, prefabIndex = a_tile.data.prefabIndex });
 
             loadedTiles[a_position] = a_tile;
         }
@@ -134,7 +121,7 @@ namespace AltaVR.MapCreation
 
         public Tile GetTileAt(Vector3 a_position)
         {
-            return loadedTiles[a_position];
+            return loadedTiles.ContainsKey(a_position) ? loadedTiles[a_position] : null;
         }
 
         public Vector3 GetCellSize()
@@ -178,10 +165,7 @@ namespace AltaVR.MapCreation
                     if (a_position.x < (position.x + cellSize.x) && a_position.x > (position.x - cellSize.x)
                         && a_position.y < (position.y + cellSize.y) && a_position.y > (position.y - cellSize.y))
                     {
-                        Vector3 newPos = -position;
-                        newPos.x = position.x;
-
-                        rT = loadedTiles.ContainsKey(newPos) ? loadedTiles[newPos].data : new TileData { prefabIndex = -2, position = newPos };
+                        rT = loadedTiles.ContainsKey(position) ? loadedTiles[position].data : new TileData { prefabIndex = -2, position = position };
                     }
                 }
             }
@@ -191,6 +175,8 @@ namespace AltaVR.MapCreation
 
 #if UNITY_EDITOR
         private TileData _currentHover;
+        private Color _hoverYellow = new Color(1, 1, 0.2f, 0.5f);
+        private Color _hoverRed = new Color(1, 0, 0f, 0.5f);
 
         public void DrawHovered(TileData a_tile)
         {
@@ -219,15 +205,10 @@ namespace AltaVR.MapCreation
                 }
             }
 
-            if (_currentHover.prefabIndex != -1)
+            if (_currentHover.prefabIndex != -1 && _editMode)
             {
-                if (_currentHover.prefabIndex > -1)
-                {
-                    Gizmos.color = Color.red;
-                    Gizmos.DrawWireCube(_currentHover.position, cellSize);
-                }
-                else
-                    Gizmos.DrawCube(_currentHover.position, cellSize);
+                Gizmos.color = _currentHover.prefabIndex > -1 ? _hoverRed : _hoverYellow;
+                Gizmos.DrawCube(_currentHover.position, cellSize);
             }
         }
 #endif
