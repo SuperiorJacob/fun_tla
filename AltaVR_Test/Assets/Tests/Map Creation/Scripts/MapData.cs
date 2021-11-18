@@ -14,6 +14,7 @@ namespace AltaVR.MapCreation
     [System.Serializable]
     public struct TileData
     {
+        public Vector3 localPosition;
         public Vector3 position;
         public int prefabIndex;
     }

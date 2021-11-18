@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 namespace AltaVR.Pathfinding
@@ -16,6 +17,7 @@ namespace AltaVR.Pathfinding
             f;
 
         public bool isWalkable;
+        public bool walkingOver;
 
         public PathNode previous;
         public PathNode next;
@@ -23,6 +25,22 @@ namespace AltaVR.Pathfinding
         public void CalculateFCost()
         {
             f = (g + h);
+        }
+
+        // Debugging
+        public void DrawGizmos(Vector3 a_position)
+        {
+            if (!isWalkable)
+            {
+                Gizmos.color = Color.red;
+                Gizmos.DrawWireSphere(a_position, 0.3f);
+            }
+
+            if (walkingOver)
+            {
+                Gizmos.color = Color.blue;
+                Gizmos.DrawCube(a_position, Vector3.one * 0.1f);
+            }
         }
     }
 
@@ -40,37 +58,75 @@ namespace AltaVR.Pathfinding
         private List<PathNode> openList;
         private List<PathNode> closedList;
 
-        private Dictionary<MapCreation.Tile, PathNode> tiledNodes;
+        private Dictionary<Vector3, PathNode> tiledNodes;
+
+        public PathNode CreateNode(Vector3 a_pos, bool a_walkable, PathNode a_previous = null)
+        {
+            PathNode node = new PathNode();
+            node.x = (int)a_pos.x;
+            node.y = (int)a_pos.y;
+
+            node.g = int.MaxValue;
+            node.CalculateFCost();
+            node.previous = a_previous;
+
+            node.isWalkable = a_walkable;
+
+            tiledNodes[a_pos] = node;
+
+            return node;
+        }
+
+        public void ResetTileNodes()
+        {
+            foreach (var t in tiledNodes)
+            {
+                var tile = t.Value;
+
+                tile.g = int.MaxValue;
+                tile.h = 0;
+                tile.previous = null;
+                tile.walkingOver = false;
+                tile.CalculateFCost();
+            }
+        }
 
         public void LoadTiledNodes()
         {
-            tiledNodes = new Dictionary<MapCreation.Tile, PathNode>();
+            tiledNodes = new Dictionary<Vector3, PathNode>();
 
             foreach (var tile in map.loadedTiles)
             {
-                Vector2 pos = tile.Value.data.position;
+                CreateNode(tile.Key, false);
+            }
 
-                PathNode node = new PathNode();
-                node.x = (int)pos.x;
-                node.y = (int)pos.y;
+            Vector2Int cellCount = map.GetGridCount();
+            Vector3 cellSize = map.GetCellSize();
 
-                node.g = int.MaxValue;
-                node.CalculateFCost();
+            for (int x = 0; x < cellCount.x; x++)
+            {
+                for (int y = 0; y < cellCount.y; y++)
+                {
+                    Vector3 pos = map.GetGridPosition(x, y);
 
-                node.isWalkable = true;
-
-                tiledNodes[tile.Value] = node;
+                    if (!tiledNodes.ContainsKey(pos))
+                        CreateNode(pos, true);
+                }
             }
         }
 
         public PathNode GetNodeByTile(Vector3 a_position)
         {
-            Vector3 position = map.GetTileByClosestPosition(a_position).position;
+            var tile = map.GetTileByClosestPosition(a_position);
 
-            if (map.loadedTiles != null && map.loadedTiles.ContainsKey(position) &&
-                tiledNodes.ContainsKey(map.loadedTiles[position]))
+            if (tile.prefabIndex == -1)
+                return null;
+
+            Vector3 position = tile.position;
+
+            if (tiledNodes != null && tiledNodes.ContainsKey(position))
             {
-                return tiledNodes[map.loadedTiles[position]];
+                return tiledNodes[position];
             }
 
             return null;
@@ -78,11 +134,15 @@ namespace AltaVR.Pathfinding
 
         public List<PathNode> FindMapPath(Vector3 a_start, Vector3 a_goal)
         {
+            ResetTileNodes();
+
             PathNode startNode = GetNodeByTile(a_start);
             if (startNode == null)
                 return null;
 
             PathNode endNode = GetNodeByTile(a_goal);
+            if (endNode == null)
+                return null;
 
             openList = new List<PathNode>() { startNode };
             closedList = new List<PathNode>();
@@ -95,6 +155,8 @@ namespace AltaVR.Pathfinding
             {
                 PathNode currentNode = GetLowestFCostNode(openList);
 
+                // figure this out? weird.
+
                 if (currentNode == endNode)
                     // Reached final node.
                     return CalculatePath(endNode);
@@ -104,11 +166,11 @@ namespace AltaVR.Pathfinding
 
                 foreach (PathNode neighbourNode in GetNeighbourList(currentNode))
                 {
-                    if (closedList.Contains(neighbourNode)) continue;
+                    if (neighbourNode == null || closedList.Contains(neighbourNode) || !neighbourNode.isWalkable) continue;
 
                     int tentativeGCost = currentNode.g + CalculateDistanceCost(currentNode, neighbourNode);
 
-                    if (tentativeGCost < neighbourNode.g)
+                    if (tentativeGCost < neighbourNode.g || !openList.Contains(neighbourNode))
                     {
                         neighbourNode.previous = currentNode;
                         neighbourNode.g = tentativeGCost;
@@ -132,6 +194,7 @@ namespace AltaVR.Pathfinding
             PathNode currentNode = a_endNode;
             while (currentNode.previous != null)
             {
+                currentNode.previous.walkingOver = true;
                 path.Add(currentNode.previous);
                 currentNode = currentNode.previous;
             }
@@ -145,40 +208,52 @@ namespace AltaVR.Pathfinding
         {
             List<PathNode> neighbourList = new List<PathNode>();
 
-            if (a_currentNode.x - 1 >= 0)
+            float gridx = map.mapInfo.grid.gridSize.x / 2;
+            float gridy = map.mapInfo.grid.gridSize.y / 2;
+
+            PathNode down = null;
+            PathNode up = null;
+
+            // Down
+            if (a_currentNode.y - 1 >= -map.mapInfo.grid.gridSize.y)
+            {
+                down = GetNodeByTile(new Vector2(a_currentNode.x, a_currentNode.y - 1));
+                neighbourList.Add(down);
+            }
+
+            // Up
+            if (a_currentNode.y + 1 < map.mapInfo.grid.gridSize.y)
+            {
+                up = GetNodeByTile(new Vector2(a_currentNode.x, a_currentNode.y + 1));
+                neighbourList.Add(up);
+            }
+
+            if (a_currentNode.x - 1 >= -gridx)
             {
                 // Left
                 neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x - 1, a_currentNode.y)));
 
                 // Left Down
-                if (a_currentNode.y - 1 >= 0) 
+                if (a_currentNode.y - 1 >= -gridy && down.isWalkable)
                     neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x - 1, a_currentNode.y - 1)));
 
                 // Left Up
-                if (a_currentNode.y + 1 >= map.mapInfo.grid.gridSize.y)
+                if (a_currentNode.y + 1 >= gridy && up.isWalkable)
                     neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x - 1, a_currentNode.y + 1)));
             }
-            if (a_currentNode.x - 1 >= map.mapInfo.grid.gridSize.x)
+            if (a_currentNode.x + 1 >= 0)
             {
                 // Right
                 neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x + 1, a_currentNode.y)));
 
                 // Right Down
-                if (a_currentNode.y - 1 >= 0)
+                if (a_currentNode.y - 1 >= -gridy && down.isWalkable)
                     neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x + 1, a_currentNode.y - 1)));
 
                 // Right Up
-                if (a_currentNode.y + 1 >= map.mapInfo.grid.gridSize.y)
+                if (a_currentNode.y + 1 >= gridy && up.isWalkable)
                     neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x + 1, a_currentNode.y + 1)));
             }
-
-            // Down
-            if (a_currentNode.y - 1 >= 0)
-                neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x, a_currentNode.y - 1)));
-
-            // Up
-            if (a_currentNode.y + 1 < map.mapInfo.grid.gridSize.y)
-                neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x, a_currentNode.y + 1)));
 
             return neighbourList;
         }
@@ -208,33 +283,17 @@ namespace AltaVR.Pathfinding
         // Cursed remove this
         private void Start()
         {
-            StartCoroutine(LateLoad(0.5f));
-        }
-
-        private IEnumerator LateLoad(float a_time)
-        {
-            yield return new WaitForSeconds(a_time);
-
             LoadTiledNodes();
         }
-//
+        //
 
-
-        private void Update()
+        private void OnDrawGizmos()
         {
-            if (Input.GetMouseButtonDown(0))
-            {
-                Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-
-                var path = FindMapPath(map.mapInfo.tiles[0].position, mouseWorldPos);
-                if (path != null)
+            if (tiledNodes != null)
+                foreach (var tile in tiledNodes)
                 {
-                    for (int i=0; i < path.Count -1; i++)
-                    {
-                        Debug.DrawLine(new Vector3(path[i].x, path[i].y) * 10f + Vector3.one * 5f, new Vector3(path[i + 1].x, path[i + 1].y) * 10f + Vector3.one * 5f);
-                    }
+                    tile.Value.DrawGizmos(map.GetTileByClosestPosition(new Vector3(tile.Value.x, tile.Value.y)).position);
                 }
-            }
         }
     }
 }

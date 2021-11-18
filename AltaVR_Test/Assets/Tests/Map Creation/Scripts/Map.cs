@@ -96,10 +96,16 @@ namespace AltaVR.MapCreation
                 DestroyImmediate(transform.GetChild(0).gameObject);
 
             if (mapInfo.tiles != null)
-                foreach (var tile in mapInfo.tiles)
+                for (int i = 0; i < mapInfo.tiles.Length; i++)
                 {
+                    var tile = mapInfo.tiles[i];
+
                     if (mapInfo.prefabs.Length < tile.prefabIndex)
                         continue;
+
+                    tile.position = transform.TransformPoint(tile.localPosition);
+
+                    mapInfo.tiles[i] = tile;
 
                     CreateTile(tile);
                 }
@@ -108,7 +114,7 @@ namespace AltaVR.MapCreation
         public void SetTileAtPosition(Tile a_tile, Vector3 a_position, bool a_setTile = false)
         {
             if (a_setTile)
-                mapInfo.SetTile(mapInfo.tiles.Length, new TileData { position = a_position, prefabIndex = a_tile.data.prefabIndex });
+                mapInfo.SetTile(mapInfo.tiles.Length, new TileData { position = a_position, localPosition = a_tile.transform.localPosition, prefabIndex = a_tile.data.prefabIndex });
 
             loadedTiles[a_position] = a_tile;
         }
