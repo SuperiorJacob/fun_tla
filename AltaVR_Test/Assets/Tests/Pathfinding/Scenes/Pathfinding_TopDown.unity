@@ -4312,8 +4312,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   map: {fileID: 953836074}
-  diagonalCost: 14
-  straightCost: 10
+  diagonalCost: 10
+  straightCost: 14
   navigatorSize: {x: 1, y: 1}
   start: {x: 0, y: 0, z: 0}
   goal: {x: 0, y: 0, z: 0}

@@ -7,6 +7,7 @@ namespace AltaVR.Pathfinding
     public class PlayerFinder : MonoBehaviour
     {
         public Pathfinding pathFinder;
+        [SerializeField] private float _playerSpeed = 10f;
 
         private List<PathNode> _currentPath;
         private int _currentNode = 0;
@@ -42,7 +43,7 @@ namespace AltaVR.Pathfinding
                 if ((transform.position - go).magnitude < 0.1f && (_currentNode + 1) < _currentPath.Count)
                     _currentNode += 1;
 
-                transform.position = Vector3.Lerp(transform.position, go, Time.deltaTime * 10f);
+                transform.position = Vector3.Lerp(transform.position, go, Time.deltaTime * _playerSpeed);
             }
         }
     }
