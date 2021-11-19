@@ -50,7 +50,7 @@ namespace AltaVR.MapCreation
 
         public GameObject CreateTile(TileData a_tile, bool a_assign = false)
         {
-            if (a_tile.prefabIndex == -1 || GetTileAt(a_tile.position) != null)
+            if (a_tile.prefabIndex >= mapInfo.prefabs.Length || a_tile.prefabIndex == -1 || GetTileAt(a_tile.position) != null)
                 return null;
 
             var obj = Instantiate(mapInfo.prefabs[a_tile.prefabIndex], a_tile.position, default, transform);
