@@ -164,8 +164,6 @@ namespace AltaVR.Pathfinding
                         CreateNode(pos, true);
                 }
             }
-
-            ResetTileNodes();
         }
 
         public MapCreation.TileData GetNodeByClosestPosition(Vector3 a_position)
@@ -481,6 +479,7 @@ namespace AltaVR.Pathfinding
 
             map.LoadSavedTiles();
             LoadTiledNodes();
+            ResetTileNodes();
 
             _renderPath = new List<PathNode>();
 
@@ -540,8 +539,11 @@ namespace AltaVR.Pathfinding
                 }
 
             }
-            else if (!renderPaths && Application.isEditor)
+            else if (!renderPaths && Application.isEditor && _renderPath != null)
+            {
                 tiledNodes = null;
+                _renderPath = null;
+            }
 
             if (tiledNodes != null)
                 foreach (var tile in tiledNodes)
