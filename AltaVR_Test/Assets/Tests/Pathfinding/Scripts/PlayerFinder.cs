@@ -38,7 +38,7 @@ namespace AltaVR.Pathfinding
 
                 Vector3 tilePos = pathFinder.map.GetTileByClosestPosition(currentLocalPos).position;
 
-                _currentPath = pathFinder.platformer ? pathFinder.FindMapPlatformerPath(tilePos, mouseWorldPos) : pathFinder.FindMapPath(tilePos, mouseWorldPos);
+                _currentPath = pathFinder.FindMapPath(tilePos, mouseWorldPos);
                 _currentNode = 0;
 
             }

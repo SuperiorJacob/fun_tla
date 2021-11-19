@@ -18,9 +18,9 @@ namespace AltaVR.Pathfinding
 
         public bool isWalkable;
         public bool walkingOver;
+        public bool reachableOutside;
 
         public PathNode previous;
-        public PathNode next;
 
         public void CalculateFCost()
         {
@@ -40,6 +40,12 @@ namespace AltaVR.Pathfinding
             {
                 Gizmos.color = Color.blue;
                 Gizmos.DrawCube(a_position, Vector3.one * 0.1f);
+            }
+
+            if (reachableOutside)
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawCube(a_position, Vector3.one * 0.3f);
             }
         }
     }
@@ -79,18 +85,42 @@ namespace AltaVR.Pathfinding
             return node;
         }
 
+        public void ResetTileNode(PathNode a_node)
+        {
+            a_node.g = int.MaxValue;
+            a_node.h = 0;
+            a_node.previous = null;
+            a_node.walkingOver = false;
+            a_node.CalculateFCost();
+        }
+
         public void ResetTileNodes()
         {
+            System.Action toChange = default;
+
             foreach (var t in tiledNodes)
             {
                 var tile = t.Value;
+                ResetTileNode(tile);
 
-                tile.g = int.MaxValue;
-                tile.h = 0;
-                tile.previous = null;
-                tile.walkingOver = false;
-                tile.CalculateFCost();
+                // Create a tile that can only be accessed at the top for jumping.
+                if (platformer && !tile.reachableOutside)
+                {
+                    Vector3 up = new Vector3(tile.x, tile.y + 1);
+
+                    if (!tiledNodes.ContainsKey(up))
+                    {
+                        toChange += () => {
+                            var node = CreateNode(up, true);
+                            node.reachableOutside = true;
+
+                            ResetTileNode(node);
+                        };
+                    }
+                }
             }
+
+            toChange?.Invoke();
         }
 
         public void LoadTiledNodes()
@@ -117,21 +147,27 @@ namespace AltaVR.Pathfinding
             }
         }
 
-        public PathNode GetNodeByTile(Vector3 a_position)
+        public MapCreation.TileData GetNodeByClosestPosition(Vector3 a_position)
         {
             var tile = map.GetTileByClosestPosition(a_position);
+            var node = tiledNodes.ContainsKey(a_position) ? tiledNodes[a_position] : null;
 
-            if (tile.prefabIndex == -1)
+            if (node != null && node.reachableOutside)
+                tile.position = new Vector3(node.x, node.y);
+
+            return tile;
+        }
+
+        public PathNode GetNodeByTile(Vector3 a_position)
+        {
+            var tile = GetNodeByClosestPosition(a_position);
+
+            var node = tiledNodes.ContainsKey(tile.position) ? tiledNodes[tile.position] : null;
+
+            if (tile.prefabIndex == -1 && (node == null || !node.reachableOutside))
                 return null;
 
-            Vector3 position = tile.position;
-
-            if (tiledNodes != null && tiledNodes.ContainsKey(position))
-            {
-                return tiledNodes[position];
-            }
-
-            return null;
+            return node;
         }
 
         public List<PathNode> FindMapPath(Vector3 a_start, Vector3 a_goal)
@@ -143,7 +179,10 @@ namespace AltaVR.Pathfinding
                 return null;
 
             PathNode endNode = GetNodeByTile(a_goal);
-            if (endNode == null)
+            PathNode belowEndNode = GetNodeByTile(new Vector3(endNode.x, endNode.y - 1));
+
+            if (endNode == null ||
+                platformer && (belowEndNode == null || belowEndNode.isWalkable)) // Check if the player can ACTUALLY stand above this node.
                 return null;
 
             openList = new List<PathNode>() { startNode };
@@ -166,7 +205,7 @@ namespace AltaVR.Pathfinding
                 openList.Remove(currentNode);
                 closedList.Add(currentNode);
 
-                foreach (PathNode neighbourNode in GetNeighbourList(currentNode))
+                foreach (PathNode neighbourNode in (platformer ? GetNeighbourPlatformerList(currentNode) : GetNeighbourList(currentNode)))
                 {
                     if (neighbourNode == null || closedList.Contains(neighbourNode) || 
                         !neighbourNode.isWalkable) continue; // Obstacle rule
@@ -178,6 +217,7 @@ namespace AltaVR.Pathfinding
                         neighbourNode.previous = currentNode;
                         neighbourNode.g = tentativeGCost;
                         neighbourNode.h = CalculateDistanceCost(neighbourNode, endNode);
+
                         neighbourNode.CalculateFCost();
 
                         if (!openList.Contains(neighbourNode))
@@ -207,73 +247,70 @@ namespace AltaVR.Pathfinding
             return path;
         }
 
-        private PathNode SetupNode(PathNode a_toSetup, PathNode a_current, PathNode a_end)
-        {
-            a_toSetup.previous = a_current;
-            a_toSetup.g = a_current.g + CalculateDistanceCost(a_current, a_toSetup);
-            a_toSetup.h = CalculateDistanceCost(a_toSetup, a_end);
-            a_toSetup.CalculateFCost();
-
-            if (!openList.Contains(a_toSetup))
-                openList.Add(a_toSetup);
-
-            return a_toSetup;
-        }
-
-        public List<PathNode> FindMapPlatformerPath(Vector3 a_start, Vector3 a_goal)
-        {
-            ResetTileNodes();
-
-            PathNode startNode = GetNodeByTile(a_start);
-            if (startNode == null)
-                return null;
-
-            PathNode endNode = GetNodeByTile(a_goal);
-            if (endNode == null)
-                return null;
-
-            openList = new List<PathNode>() { startNode };
-            closedList = new List<PathNode>();
-
-            startNode.g = 0;
-            startNode.h = CalculateDistanceCost(startNode, endNode);
-            startNode.CalculateFCost();
-
-            while (openList.Count > 0)
-            {
-                PathNode currentNode = GetLowestFCostNode(openList);
-
-                // figure this out? weird.
-
-                if (currentNode == endNode)
-                    // Reached final node.
-                    return CalculatePath(endNode);
-
-                openList.Remove(currentNode);
-                closedList.Add(currentNode);
-
-                foreach (PathNode neighbourNode in GetNeighbourPlatformerList(currentNode))
-                {
-                    if (neighbourNode == null || closedList.Contains(neighbourNode)) continue; // Obstacle rule
-
-                    // Platform rules
-
-                    // neighbourNode.isWalkable
-
-                    int tentativeGCost = currentNode.g + CalculateDistanceCost(currentNode, neighbourNode);
-
-                    if (tentativeGCost < neighbourNode.g || !openList.Contains(neighbourNode))
-                        SetupNode(neighbourNode, currentNode, endNode);
-                }
-            }
-
-            return null;
-        }
-
         private PathNode FindLowestNode(PathNode a_start)
         {
             var node = GetNodeByTile(new Vector2(a_start.x, a_start.y - 1));
             return node != null && node.isWalkable ? FindLowestNode(node) : a_start;
+        }
+
+        private void GetDirectionedRules(List<PathNode> a_neighbourList, PathNode a_currentNode, PathNode a_up, PathNode a_down, float a_gridY, int a_dir)
+        {
+            var dirNode = GetNodeByTile(new Vector2(a_currentNode.x + a_dir, a_currentNode.y));
+
+            if (dirNode != null)
+            {
+                var dirDown = GetNodeByTile(new Vector2(dirNode.x, dirNode.y - 1));
+                var dirUp = GetNodeByTile(new Vector2(dirNode.x, dirNode.y + 1));
+
+                if (dirNode.isWalkable && dirDown != null)
+                {
+                    // Single Dir
+                    if (!dirDown.isWalkable)
+                        a_neighbourList.Add(dirNode);
+                    else // 1x Directional (jump down any distance).
+                    {
+                        // Directly down
+                        var lowest = FindLowestNode(dirNode);
+                        lowest.walkingOver = true;
+                        a_neighbourList.Add(lowest);
+
+                        // 2x Directional (jump down any distance).
+                        var lowestDir = GetNodeByTile(new Vector2(dirNode.x + a_dir, dirNode.y + 1));
+                        if (lowestDir != null && !lowestDir.isWalkable)
+                            a_neighbourList.Add(lowestDir);
+                    }
+                }
+                // Dir Up
+                else if (!dirNode.isWalkable)
+                {
+                    // Jump up 1
+                    if (a_up != null && a_up.isWalkable &&
+                        dirUp != null && dirUp.isWalkable)
+                    {
+                        a_neighbourList.Add(dirUp);
+                    }
+                }
+
+                if (a_up != null && a_up.isWalkable)
+                {
+                    // Check if there are two spaces free above you.
+                    var upTwo = GetNodeByTile(new Vector2(a_up.x, a_up.y + 1));
+
+                    if (upTwo != null && upTwo.isWalkable)
+                    {
+                        // Jump up 2
+                        var dirUpTwo = GetNodeByTile(new Vector2(dirUp.x, dirUp.y + 1));
+
+                        if (dirUpTwo != null && dirUpTwo.isWalkable && a_up != null && a_up.isWalkable)
+                            a_neighbourList.Add(dirUpTwo);
+                    }
+                }
+
+                if (a_currentNode.y + 1 < a_gridY &&
+                a_up != null && a_up.isWalkable && // Can we go up? (jump)
+                a_down != null && !a_down.isWalkable) // Is this actually a platform?
+                    a_neighbourList.Add(GetNodeByTile(new Vector2(dirNode.x, dirNode.y + 1)));
+            }
         }
 
         private List<PathNode> GetNeighbourPlatformerList(PathNode a_currentNode)
@@ -288,71 +325,19 @@ namespace AltaVR.Pathfinding
 
             // Down
             if (a_currentNode.y - 1 >= -map.mapInfo.grid.gridSize.y)
-            {
                 down = GetNodeByTile(new Vector2(a_currentNode.x, a_currentNode.y - 1));
-                if (down.isWalkable)
-                    neighbourList.Add(down);
-            }
 
             // Up
             if (a_currentNode.y + 1 < map.mapInfo.grid.gridSize.y)
-            {
                 up = GetNodeByTile(new Vector2(a_currentNode.x, a_currentNode.y + 1));
-                if (down.isWalkable)
-                    neighbourList.Add(up);
-            }
-
+            
+            // Left
             if (a_currentNode.x - 1 >= -gridx)
-            {
-                var left = GetNodeByTile(new Vector2(a_currentNode.x - 1, a_currentNode.y));
+                GetDirectionedRules(neighbourList, a_currentNode, up, down, gridy, -1);
 
-                if (left != null)
-                {
-                    var leftDown = GetNodeByTile(new Vector2(left.x, left.y - 1));
-                    var leftUp = GetNodeByTile(new Vector2(left.x, left.y + 1));
-
-                    if (left.isWalkable && leftDown != null)
-                    {
-                        // Single left
-                        if (!leftDown.isWalkable)
-                            neighbourList.Add(left);
-                        else // Jump down lowest node
-                        {
-                            var node = FindLowestNode(left);
-                            node.walkingOver = true;
-                            neighbourList.Add(node);
-                        }
-                    }
-                    // Left up
-                    else if (!left.isWalkable && left != null && leftUp.isWalkable)
-                    {
-                        neighbourList.Add(left);
-                    }
-                }
-
-                // Left Up
-                if (a_currentNode.y + 1 < gridy &&
-                    up != null && up.isWalkable)
-                    neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x - 1, a_currentNode.y + 1)));
-            }
-
+            // Right
             if (a_currentNode.x + 1 >= 0)
-            {
-                // Right
-                neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x + 1, a_currentNode.y)));
-
-                // Right Down
-                if (a_currentNode.y - 1 >= -gridy &&
-                    down != null && down.isWalkable)
-                    neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x + 1, a_currentNode.y - 1)));
-
-                Debug.Log(a_currentNode.y + " " + gridy);
-
-                // Right Up
-                if (a_currentNode.y + 1 < gridy &&
-                    up != null && up.isWalkable)
-                    neighbourList.Add(GetNodeByTile(new Vector2(a_currentNode.x + 1, a_currentNode.y + 1)));
-            }
+                GetDirectionedRules(neighbourList, a_currentNode, up, down, gridy, 1);
 
             return neighbourList;
         }
@@ -453,7 +438,7 @@ namespace AltaVR.Pathfinding
             if (tiledNodes != null)
                 foreach (var tile in tiledNodes)
                 {
-                    tile.Value.DrawGizmos(map.GetTileByClosestPosition(new Vector3(tile.Value.x, tile.Value.y)).position);
+                    tile.Value.DrawGizmos(new Vector3(tile.Value.x, tile.Value.y));
                 }
         }
     }

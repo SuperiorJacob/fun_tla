@@ -15,28 +15,178 @@ MonoBehaviour:
   mapInfo:
     gridAnchor: 0
     grid:
-      gridSize: {x: 15, y: 5, z: 0}
+      gridSize: {x: 18, y: 10, z: 0}
       cellSize: {x: 1, y: 1}
     prefabs:
     - {fileID: 496976725510347998, guid: 049e219653dac134baeec0c33dd19981, type: 3}
     - {fileID: 496976725510347998, guid: d0a3c6dbabbae4448816411d9a3f833e, type: 3}
     - {fileID: 496976725510347998, guid: dd9d29a70e42843409f305a0e4e3928e, type: 3}
     tiles:
+    - localPosition: {x: 0, y: -1, z: 0}
+      position: {x: 0, y: -1, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 0, y: -2, z: 0}
+      position: {x: 0, y: -2, z: 0}
+      prefabIndex: 0
     - localPosition: {x: 0, y: -3, z: 0}
       position: {x: 0, y: -3, z: 0}
       prefabIndex: 0
     - localPosition: {x: 1, y: -3, z: 0}
       position: {x: 1, y: -3, z: 0}
       prefabIndex: 0
-    - localPosition: {x: 2, y: -3, z: 0}
-      position: {x: 2, y: -3, z: 0}
+    - localPosition: {x: 2, y: -1, z: 0}
+      position: {x: 2, y: -1, z: 0}
       prefabIndex: 0
+    - localPosition: {x: 3, y: -3, z: 0}
+      position: {x: 3, y: -3, z: 0}
+      prefabIndex: 2
     - localPosition: {x: 4, y: -3, z: 0}
       position: {x: 4, y: -3, z: 0}
       prefabIndex: 0
     - localPosition: {x: 6, y: -3, z: 0}
       position: {x: 6, y: -3, z: 0}
-      prefabIndex: 0
+      prefabIndex: 2
+    - localPosition: {x: 7, y: -2, z: 0}
+      position: {x: 7, y: -2, z: 0}
+      prefabIndex: 2
     - localPosition: {x: 8, y: -3, z: 0}
       position: {x: 8, y: -3, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 8, y: -2, z: 0}
+      position: {x: 8, y: -2, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 9, y: -1, z: 0}
+      position: {x: 9, y: -1, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 11, y: -1, z: 0}
+      position: {x: 11, y: -1, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 12, y: 0, z: 0}
+      position: {x: 12, y: 0, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 14, y: 0, z: 0}
+      position: {x: 14, y: 0, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 14, y: -2, z: 0}
+      position: {x: 14, y: -2, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 15, y: -2, z: 0}
+      position: {x: 15, y: -2, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 17, y: -2, z: 0}
+      position: {x: 17, y: -2, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 16, y: -4, z: 0}
+      position: {x: 16, y: -4, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 15, y: -4, z: 0}
+      position: {x: 15, y: -4, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 13, y: -5, z: 0}
+      position: {x: 13, y: -5, z: 0}
+      prefabIndex: 2
+    - localPosition: {x: 12, y: -6, z: 0}
+      position: {x: 12, y: -6, z: 0}
+      prefabIndex: 1
+    - localPosition: {x: 15, y: -8, z: 0}
+      position: {x: 15, y: -8, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 15, y: -7, z: 0}
+      position: {x: 15, y: -7, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 16, y: -8, z: 0}
+      position: {x: 16, y: -8, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 17, y: -8, z: 0}
+      position: {x: 17, y: -8, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 14, y: -8, z: 0}
+      position: {x: 14, y: -8, z: 0}
+      prefabIndex: 2
+    - localPosition: {x: 13, y: -8, z: 0}
+      position: {x: 13, y: -8, z: 0}
+      prefabIndex: 1
+    - localPosition: {x: 12, y: -8, z: 0}
+      position: {x: 12, y: -8, z: 0}
+      prefabIndex: 1
+    - localPosition: {x: 11, y: -8, z: 0}
+      position: {x: 11, y: -8, z: 0}
+      prefabIndex: 2
+    - localPosition: {x: 10, y: -8, z: 0}
+      position: {x: 10, y: -8, z: 0}
+      prefabIndex: 2
+    - localPosition: {x: 9, y: -8, z: 0}
+      position: {x: 9, y: -8, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 6, y: -8, z: 0}
+      position: {x: 6, y: -8, z: 0}
+      prefabIndex: 2
+    - localPosition: {x: 5, y: -8, z: 0}
+      position: {x: 5, y: -8, z: 0}
+      prefabIndex: 2
+    - localPosition: {x: 4, y: -8, z: 0}
+      position: {x: 4, y: -8, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 3, y: -8, z: 0}
+      position: {x: 3, y: -8, z: 0}
+      prefabIndex: 2
+    - localPosition: {x: 3, y: -7, z: 0}
+      position: {x: 3, y: -7, z: 0}
+      prefabIndex: 2
+    - localPosition: {x: 2, y: -8, z: 0}
+      position: {x: 2, y: -8, z: 0}
+      prefabIndex: 1
+    - localPosition: {x: 1, y: -8, z: 0}
+      position: {x: 1, y: -8, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 1, y: -7, z: 0}
+      position: {x: 1, y: -7, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 2, y: -7, z: 0}
+      position: {x: 2, y: -7, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 2, y: -6, z: 0}
+      position: {x: 2, y: -6, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 1, y: -6, z: 0}
+      position: {x: 1, y: -6, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 2, y: -5, z: 0}
+      position: {x: 2, y: -5, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 3, y: -6, z: 0}
+      position: {x: 3, y: -6, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 6, y: -6, z: 0}
+      position: {x: 6, y: -6, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 6, y: -7, z: 0}
+      position: {x: 6, y: -7, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 5, y: -6, z: 0}
+      position: {x: 5, y: -6, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 7, y: -6, z: 0}
+      position: {x: 7, y: -6, z: 0}
+      prefabIndex: 2
+    - localPosition: {x: 8, y: -6, z: 0}
+      position: {x: 8, y: -6, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 8, y: -5, z: 0}
+      position: {x: 8, y: -5, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 9, y: -6, z: 0}
+      position: {x: 9, y: -6, z: 0}
+      prefabIndex: 1
+    - localPosition: {x: 12, y: -9, z: 0}
+      position: {x: 12, y: -9, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 10, y: -3, z: 0}
+      position: {x: 10, y: -3, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 11, y: -3, z: 0}
+      position: {x: 11, y: -3, z: 0}
+      prefabIndex: 0
+    - localPosition: {x: 12, y: -3, z: 0}
+      position: {x: 12, y: -3, z: 0}
       prefabIndex: 0
