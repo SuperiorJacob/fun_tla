@@ -27,6 +27,7 @@ namespace AltaVR.Pathfinding
             f = (g + h);
         }
 
+#if UNITY_EDITOR
         // Debugging
         public void DrawGizmos(Vector3 a_position)
         {
@@ -45,14 +46,16 @@ namespace AltaVR.Pathfinding
             if (reachableOutside)
             {
                 Gizmos.color = Color.green;
-                Gizmos.DrawCube(a_position, Vector3.one * 0.3f);
+                Gizmos.DrawCube(a_position, Vector3.one * 0.1f);
             }
         }
+#endif
     }
 
     public class Pathfinding : MonoBehaviour
     {
         public MapCreation.Map map;
+        public PlayerFinder player;
 
         public int diagonalCost = 10;
         public int straightCost = 14;
@@ -62,6 +65,10 @@ namespace AltaVR.Pathfinding
         public Vector3 goal;
 
         public bool platformer = false;
+
+#if UNITY_EDITOR
+        public bool renderPaths;
+#endif
 
         private List<PathNode> openList;
         private List<PathNode> closedList;
@@ -106,12 +113,24 @@ namespace AltaVR.Pathfinding
                 // Create a tile that can only be accessed at the top for jumping.
                 if (platformer && !tile.reachableOutside)
                 {
+                    // Invisible one up
                     Vector3 up = new Vector3(tile.x, tile.y + 1);
-
                     if (!tiledNodes.ContainsKey(up))
                     {
                         toChange += () => {
                             var node = CreateNode(up, true);
+                            node.reachableOutside = true;
+
+                            ResetTileNode(node);
+                        };
+                    }
+
+                    // Invisible two up for jumping.
+                    Vector3 up2 = new Vector3(up.x, up.y + 1);
+                    if (!tiledNodes.ContainsKey(up2))
+                    {
+                        toChange += () => {
+                            var node = CreateNode(up2, true);
                             node.reachableOutside = true;
 
                             ResetTileNode(node);
@@ -145,6 +164,8 @@ namespace AltaVR.Pathfinding
                         CreateNode(pos, true);
                 }
             }
+
+            ResetTileNodes();
         }
 
         public MapCreation.TileData GetNodeByClosestPosition(Vector3 a_position)
@@ -179,10 +200,11 @@ namespace AltaVR.Pathfinding
                 return null;
 
             PathNode endNode = GetNodeByTile(a_goal);
-            PathNode belowEndNode = GetNodeByTile(new Vector3(endNode.x, endNode.y - 1));
+            if (endNode == null)
+                return null;
 
-            if (endNode == null ||
-                platformer && (belowEndNode == null || belowEndNode.isWalkable)) // Check if the player can ACTUALLY stand above this node.
+            PathNode belowEndNode = GetNodeByTile(new Vector3(endNode.x, endNode.y - 1));
+            if (platformer && (belowEndNode == null || belowEndNode.isWalkable)) // Check if the player can ACTUALLY stand above this node.
                 return null;
 
             openList = new List<PathNode>() { startNode };
@@ -262,6 +284,20 @@ namespace AltaVR.Pathfinding
                 var dirDown = GetNodeByTile(new Vector2(dirNode.x, dirNode.y - 1));
                 var dirUp = GetNodeByTile(new Vector2(dirNode.x, dirNode.y + 1));
 
+                // Order of rules:
+
+                // First rule jumping 1
+
+                var dirTwoDown = GetNodeByTile(new Vector2(dirNode.x + a_dir, dirNode.y - 1));
+
+                if (a_up != null && a_up.isWalkable && // Can we go up? (jump)
+                a_down != null && !a_down.isWalkable && // Is this actually a platform?
+                dirDown != null && dirDown.isWalkable && // Can we continue jumping?
+                dirUp != null && dirUp.isWalkable && 
+                dirTwoDown != null && !dirTwoDown.isWalkable)  // We can land?
+                    a_neighbourList.Add(dirUp);
+
+                // First rule is walking across or falling directly down.
                 if (dirNode.isWalkable && dirDown != null)
                 {
                     // Single Dir
@@ -271,16 +307,20 @@ namespace AltaVR.Pathfinding
                     {
                         // Directly down
                         var lowest = FindLowestNode(dirNode);
-                        lowest.walkingOver = true;
                         a_neighbourList.Add(lowest);
 
                         // 2x Directional (jump down any distance).
-                        var lowestDir = GetNodeByTile(new Vector2(dirNode.x + a_dir, dirNode.y + 1));
-                        if (lowestDir != null && !lowestDir.isWalkable)
-                            a_neighbourList.Add(lowestDir);
+                        var lowestDir = GetNodeByTile(new Vector2(dirNode.x + a_dir, dirNode.y));
+                        if (lowestDir != null)
+                        {
+                            lowestDir = FindLowestNode(lowestDir);
+
+                            if (lowestDir != null && !lowestDir.isWalkable)
+                                a_neighbourList.Add(lowestDir);
+                        }
                     }
                 }
-                // Dir Up
+                // Third rule is jumping up one.
                 else if (!dirNode.isWalkable)
                 {
                     // Jump up 1
@@ -291,7 +331,8 @@ namespace AltaVR.Pathfinding
                     }
                 }
 
-                if (a_up != null && a_up.isWalkable)
+                // Fourth rule is jumping up two.
+                if (a_up != null && a_up.isWalkable && dirUp != null && !dirUp.isWalkable)
                 {
                     // Check if there are two spaces free above you.
                     var upTwo = GetNodeByTile(new Vector2(a_up.x, a_up.y + 1));
@@ -301,15 +342,10 @@ namespace AltaVR.Pathfinding
                         // Jump up 2
                         var dirUpTwo = GetNodeByTile(new Vector2(dirUp.x, dirUp.y + 1));
 
-                        if (dirUpTwo != null && dirUpTwo.isWalkable && a_up != null && a_up.isWalkable)
+                        if (dirUpTwo != null && dirUpTwo.isWalkable)
                             a_neighbourList.Add(dirUpTwo);
                     }
                 }
-
-                if (a_currentNode.y + 1 < a_gridY &&
-                a_up != null && a_up.isWalkable && // Can we go up? (jump)
-                a_down != null && !a_down.isWalkable) // Is this actually a platform?
-                    a_neighbourList.Add(GetNodeByTile(new Vector2(dirNode.x, dirNode.y + 1)));
             }
         }
 
@@ -433,8 +469,80 @@ namespace AltaVR.Pathfinding
         }
         //
 
+#if UNITY_EDITOR
+        private List<PathNode> _renderPath;
+
+        private void GenerateRenderPath()
+        {
+            if (player == null)
+                return;
+
+            tiledNodes = new Dictionary<Vector3, PathNode>();
+
+            map.LoadSavedTiles();
+            LoadTiledNodes();
+
+            _renderPath = new List<PathNode>();
+
+            // This is ... pretty cursed, I couldn't think of how to do this properly.
+
+            Vector3 startPos = player.GetPos();
+            List<Vector3> posList = new List<Vector3>();
+
+            foreach (var tile in tiledNodes)
+            {
+                if (tile.Value.isWalkable)
+                {
+                    Vector3 p = GetNodeByClosestPosition(new Vector3(tile.Value.x, tile.Value.y)).position;
+                    if (!posList.Contains(p))
+                        posList.Add(GetNodeByClosestPosition(new Vector3(tile.Value.x, tile.Value.y)).position);
+                }
+            }
+
+            foreach (var position in posList)
+            {
+                var path = FindMapPath(startPos, position);
+                if (path != null)
+                {
+                    foreach (var p in path)
+                    {
+                        if (p.isWalkable)
+                            _renderPath.Add(p);
+                    }
+                }
+            }
+        }
+
         private void OnDrawGizmos()
         {
+            // Very slow.
+            if (renderPaths && Application.isEditor)
+            {
+                if (tiledNodes == null)
+                {
+                    GenerateRenderPath();
+                }
+                else
+                {
+                    for (int i = 0; i < _renderPath.Count - 1; i++)
+                    {
+                        var start = _renderPath[i];
+                        var end = _renderPath[i + 1];
+
+                        Vector3 startPath = new Vector3(start.x, start.y);
+                        Vector3 endPath = new Vector3(end.x, end.y);
+
+                        if ((startPath - endPath).magnitude > 3 || endPath == player.GetPos())
+                            continue;
+
+                        Debug.DrawLine(startPath, endPath, Color.black);
+                    }
+                }
+
+            }
+            else if (!renderPaths && Application.isEditor)
+                tiledNodes = null;
+
             if (tiledNodes != null)
                 foreach (var tile in tiledNodes)
                 {
@@ -442,4 +550,5 @@ namespace AltaVR.Pathfinding
                 }
         }
     }
+#endif
 }

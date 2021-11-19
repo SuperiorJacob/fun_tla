@@ -27,6 +27,15 @@ namespace AltaVR.Pathfinding
             return new Vector3(a_node.x, a_node.y);
         }
 
+        public Vector3 GetPos()
+        {
+            Vector3 currentLocalPos = pathFinder.map.transform.InverseTransformVector(transform.position);
+
+            Vector3 tilePos = pathFinder.map.GetTileByClosestPosition(currentLocalPos).position;
+
+            return tilePos;
+        }
+
         private void Update()
         {
             if (Input.GetMouseButtonDown(0))
@@ -34,11 +43,7 @@ namespace AltaVR.Pathfinding
                 Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
                 mouseWorldPos.z = 0f;
 
-                Vector3 currentLocalPos = pathFinder.map.transform.InverseTransformVector(transform.position);
-
-                Vector3 tilePos = pathFinder.map.GetTileByClosestPosition(currentLocalPos).position;
-
-                _currentPath = pathFinder.FindMapPath(tilePos, mouseWorldPos);
+                _currentPath = pathFinder.FindMapPath(GetPos(), mouseWorldPos);
                 _currentNode = 0;
 
             }
