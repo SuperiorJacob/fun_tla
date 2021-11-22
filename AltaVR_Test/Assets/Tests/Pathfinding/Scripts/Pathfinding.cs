@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -28,6 +29,8 @@ namespace AltaVR.Pathfinding
         }
 
 #if UNITY_EDITOR
+        public PathNode next;
+
         // Debugging
         public void DrawGizmos(Vector3 a_position)
         {
@@ -61,8 +64,9 @@ namespace AltaVR.Pathfinding
         public int straightCost = 14;
 
         public Vector2 navigatorSize;
-        public Vector3 start;
-        public Vector3 goal;
+        
+        [HideInInspector] public Vector3 start;
+        [HideInInspector] public Vector3 goal;
 
         public bool platformer = false;
 
@@ -257,7 +261,9 @@ namespace AltaVR.Pathfinding
             PathNode currentNode = a_endNode;
             while (currentNode.previous != null)
             {
-                currentNode.previous.walkingOver = true;
+                if (!renderPaths || renderPaths && Application.isPlaying)
+                    currentNode.walkingOver = true;
+
                 path.Add(currentNode.previous);
                 currentNode = currentNode.previous;
             }
@@ -271,6 +277,28 @@ namespace AltaVR.Pathfinding
         {
             var node = GetNodeByTile(new Vector2(a_start.x, a_start.y - 1));
             return node != null && node.isWalkable ? FindLowestNode(node) : a_start;
+        }
+
+        private PathNode FindHighestNode(PathNode a_start)
+        {
+            var node = GetNodeByTile(new Vector2(a_start.x, a_start.y + 1));
+
+            if (node != null && !node.isWalkable)
+            {
+                var nodeRight = GetNodeByTile(new Vector2(a_start.x + 1, a_start.y));
+                var nodeRightBelow = GetNodeByTile(new Vector2(a_start.x + 1, a_start.y - 1));
+
+                if (nodeRight != null && nodeRight.isWalkable && nodeRightBelow != null && !nodeRightBelow.isWalkable)
+                    return nodeRight;
+
+                var nodeLeft = GetNodeByTile(new Vector2(a_start.x - 1, a_start.y));
+                var nodeLeftBelow = GetNodeByTile(new Vector2(a_start.x - 1, a_start.y - 1));
+
+                if (nodeLeft != null && nodeLeft.isWalkable && nodeLeftBelow != null && !nodeLeftBelow.isWalkable)
+                    return nodeLeft;
+            }
+
+            return node != null && node.isWalkable ? FindHighestNode(node) : a_start;
         }
 
         private void GetDirectionedRules(List<PathNode> a_neighbourList, PathNode a_currentNode, PathNode a_up, PathNode a_down, float a_gridY, int a_dir)
@@ -468,9 +496,67 @@ namespace AltaVR.Pathfinding
         //
 
 #if UNITY_EDITOR
-        private List<PathNode> _renderPath;
+        // All of this code below is for rendering scene paths.
 
-        private void GenerateRenderPath()
+        private List<(Vector3 start, Vector3 end)> _renderPathTest;
+
+        private void AddRenderPathPosition(List<PathNode> a_pathRoute)
+        {
+            for (int i = 0; i < a_pathRoute.Count - 2; i++)
+            {
+                var pR = a_pathRoute[i];
+
+                pR.next = a_pathRoute[i + 1];
+
+                var pos1 = (new Vector3(pR.x, pR.y), new Vector3(pR.next.x, pR.next.y));
+
+                if (!_renderPathTest.Contains(pos1))
+                    _renderPathTest.Add(pos1);
+            }
+        }
+
+        private void AddRenderPathDirectionDown(Vector3 a_position, int a_left)
+        {
+            var nodeDir = GetNodeByTile(new Vector3(a_position.x - a_left, a_position.y));
+            if (nodeDir != null && nodeDir.isWalkable)
+            {
+                var lowestNodeDir = FindLowestNode(nodeDir);
+
+                if (lowestNodeDir != null && lowestNodeDir.isWalkable && lowestNodeDir.y < nodeDir.y)
+                {
+                    (Vector3 start, Vector3 end) pos = (a_position, new Vector3(lowestNodeDir.x, lowestNodeDir.y));
+
+                    if (!_renderPathTest.Contains(pos))
+                    {
+                        var fp = FindMapPath(pos.start, pos.end);
+                        if (fp != null && fp.Count > 0)
+                            _renderPathTest.Add(pos);
+                    }
+                }
+            }
+
+            // Link broken jumps. Don't ask lmfao.
+
+            var nodeDirJump = GetNodeByTile(new Vector3(a_position.x - a_left, a_position.y - 1));
+            var nodeDir2 = GetNodeByTile(new Vector3(a_position.x - (a_left * 2), a_position.y));
+            var nodeDirDown = GetNodeByTile(new Vector3(a_position.x - (a_left * 2), a_position.y - 1));
+            var nodeDirUp = GetNodeByTile(new Vector3(a_position.x - a_left, a_position.y + 1));
+
+            if (nodeDirJump != null && nodeDirJump.isWalkable &&
+                nodeDir2 != null && nodeDir2.isWalkable &&
+                nodeDirDown != null && !nodeDirDown.isWalkable &&
+                nodeDirUp != null && nodeDirUp.isWalkable)
+            {
+                (Vector3 start, Vector3 end) pos = (a_position, new Vector3(nodeDirUp.x, nodeDirUp.y));
+
+                if (!_renderPathTest.Contains(pos))
+                {
+                    _renderPathTest.Add(pos);
+                }
+            }
+        }
+
+        public void GenerateRenderPath()
         {
             if (player == null)
                 return;
@@ -481,7 +567,7 @@ namespace AltaVR.Pathfinding
             LoadTiledNodes();
             ResetTileNodes();
 
-            _renderPath = new List<PathNode>();
+            _renderPathTest = new List<(Vector3 start, Vector3 end)>();
 
             // This is ... pretty cursed, I couldn't think of how to do this properly.
 
@@ -490,65 +576,95 @@ namespace AltaVR.Pathfinding
 
             foreach (var tile in tiledNodes)
             {
-                if (tile.Value.isWalkable)
+                if (platformer && !tile.Value.isWalkable)
+                {
+                    Vector3 p = GetNodeByClosestPosition(new Vector3(tile.Value.x, tile.Value.y + 1)).position;
+                    if (!posList.Contains(p))
+                        posList.Add(p);
+                }
+                else if (!platformer)
                 {
                     Vector3 p = GetNodeByClosestPosition(new Vector3(tile.Value.x, tile.Value.y)).position;
                     if (!posList.Contains(p))
-                        posList.Add(GetNodeByClosestPosition(new Vector3(tile.Value.x, tile.Value.y)).position);
+                        posList.Add(p);
                 }
             }
 
+            // Generate each position for the line renders.
             foreach (var position in posList)
             {
                 var path = FindMapPath(startPos, position);
                 if (path != null)
                 {
-                    foreach (var p in path)
+                    for (int i = 0; i < path.Count - 1; i++)
                     {
-                        if (p.isWalkable)
-                            _renderPath.Add(p);
+                        var p = path[i];
+                        p.next = path[i + 1];
+
+                        if (platformer)
+                            if ((i + 1) == (path.Count - 1))
+                            {
+                                var pathRoute = FindMapPath(new Vector3(path[i + 1].x, path[i + 1].y), startPos);
+                                if (pathRoute != null)
+                                {
+                                    p.next = pathRoute[0];
+
+                                    AddRenderPathPosition(pathRoute);
+                                }
+                            }
+
+                        var pos = (new Vector3(p.x, p.y), new Vector3(p.next.x, p.next.y));
+
+                        if (!_renderPathTest.Contains(pos))
+                            _renderPathTest.Add(pos);
                     }
+                }
+
+                if (platformer)
+                {
+                    var node = GetNodeByTile(new Vector3(position.x, position.y));
+                    if (!node.isWalkable)
+                        continue;
+
+                    // Left down
+                    AddRenderPathDirectionDown(position, 1);
+
+                    // Right down
+                    AddRenderPathDirectionDown(position, -1);
                 }
             }
         }
 
         private void OnDrawGizmos()
         {
-            // Very slow.
-            if (renderPaths && Application.isEditor)
+            // Basically scene view editor only possible paths for the player.
+            if (renderPaths && Application.isEditor && !Application.isPlaying)
             {
-                if (tiledNodes == null)
+                if (tiledNodes != null)
                 {
-                    GenerateRenderPath();
-                }
-                else
-                {
-                    for (int i = 0; i < _renderPath.Count - 1; i++)
+                    for (int i = 0; i < _renderPathTest.Count; i++)
                     {
-                        var start = _renderPath[i];
-                        var end = _renderPath[i + 1];
+                        var path = _renderPathTest[i];
 
-                        Vector3 startPath = new Vector3(start.x, start.y);
-                        Vector3 endPath = new Vector3(end.x, end.y);
-
-                        if ((startPath - endPath).magnitude > 3 || endPath == player.GetPos())
-                            continue;
-
-                        Debug.DrawLine(startPath, endPath, Color.black);
+                        if (map.ShouldNotFrustumCull(path.start) || map.ShouldNotFrustumCull(path.end))
+                            Debug.DrawLine(path.start, path.end, Color.black);
                     }
                 }
 
             }
-            else if (!renderPaths && Application.isEditor && _renderPath != null)
+            else if (!renderPaths && Application.isEditor && _renderPathTest != null)
             {
                 tiledNodes = null;
-                _renderPath = null;
+                _renderPathTest = null;
             }
 
             if (tiledNodes != null)
                 foreach (var tile in tiledNodes)
                 {
-                    tile.Value.DrawGizmos(new Vector3(tile.Value.x, tile.Value.y));
+                    Vector3 pos = new Vector3(tile.Value.x, tile.Value.y);
+                    
+                    if (map.ShouldNotFrustumCull(pos))
+                        tile.Value.DrawGizmos(pos);
                 }
         }
     }

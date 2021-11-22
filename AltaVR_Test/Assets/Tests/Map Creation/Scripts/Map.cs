@@ -191,6 +191,15 @@ namespace AltaVR.MapCreation
         private Color _hoverYellow = new Color(1, 1, 0.2f, 0.5f);
         private Color _hoverRed = new Color(1, 0, 0f, 0.5f);
 
+        // Culling when possible on the grid & other places.
+        public bool ShouldNotFrustumCull(Vector3 a_worldPos)
+        {
+            Vector3 camPos = Camera.current.WorldToScreenPoint(a_worldPos);
+
+            return (camPos.x > 0 && camPos.x < Screen.width &&
+                camPos.y > 0 && camPos.y < Screen.height);
+        }
+
         public void DrawHovered(TileData a_tile)
         {
             _currentHover = a_tile;
@@ -214,11 +223,15 @@ namespace AltaVR.MapCreation
             {
                 for (int y = 0; y < cellCount.y; y++)
                 {
-                    Gizmos.DrawWireCube(GetGridPosition(x, y), cellSize);
+                    Vector3 pos = GetGridPosition(x, y);
+
+                    if (ShouldNotFrustumCull(pos))
+                        Gizmos.DrawWireCube(pos, cellSize);
                 }
             }
 
-            if (_currentHover.prefabIndex != -1 && _editMode)
+            if (_currentHover.prefabIndex != -1 && _editMode && 
+                ShouldNotFrustumCull(_currentHover.position))
             {
                 Gizmos.color = _currentHover.prefabIndex > -1 ? _hoverRed : _hoverYellow;
                 Gizmos.DrawCube(_currentHover.position, cellSize);
